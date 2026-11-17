@@ -7,7 +7,7 @@ using namespace std;
 
 namespace esphome::tormatic {
 
-ESPHOME_LOG_TAG(TAG, "tormatic.cover");
+static const char *const TAG = "tormatic.cover";
 
 // Time to poll the UART when flushing after desync. At 9600 baud, a full
 // 12-byte message takes ~12.5ms, so 15ms guarantees all bytes have arrived.
@@ -36,6 +36,8 @@ cover::CoverTraits Tormatic::get_traits() {
 
 void Tormatic::dump_config() {
   LOG_COVER("", "Tormatic Cover", this);
+  this->check_uart_settings(9600, 1, uart::UART_CONFIG_PARITY_NONE, 8);
+
   ESP_LOGCONFIG(TAG,
                 "  Open Duration: %.1fs\n"
                 "  Close Duration: %.1fs",
@@ -199,10 +201,6 @@ void Tormatic::recompute_position_() {
 
 // Start moving the gate in the direction of the target position.
 void Tormatic::control_position_(float target) {
-  if (target == this->position) {
-    return;
-  }
-
   if (target == COVER_OPEN) {
     ESP_LOGI(TAG, "Fully opening gate");
     this->send_gate_command_(OPENED);
@@ -337,6 +335,15 @@ void Tormatic::request_gate_status_() {
 void Tormatic::send_gate_command_(GateStatus s) {
   ESP_LOGI(TAG, "Sending gate command %s", gate_status_to_str(s));
   CommandRequestReply req(s);
+  this->send_message_(COMMAND, req);
+}
+
+void Tormatic::set_light_state(bool state) { this->send_light_command_(state); }
+
+void Tormatic::send_light_command_(bool state) {
+  ESP_LOGI(TAG, "Sending light command %s", state ? "ON" : "OFF");
+
+  LightCommand req(state);
   this->send_message_(COMMAND, req);
 }
 
